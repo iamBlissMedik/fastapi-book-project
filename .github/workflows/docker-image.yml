@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build, Push Docker Image, Deploy to Azure Web App, and Restart Service
 
 on:
   push:
@@ -6,28 +6,22 @@ on:
       - main
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0  # Fetch all history
-
-      - name: Update to latest main
-        run: |
-          echo "Fetching latest changes..."
-          git fetch origin main
-          echo "Resetting to origin/main..."
-          git reset --hard origin/main
+          fetch-depth: 0  # Fetch all history for accurate change detection
 
       - name: Log in to Azure Container Registry
         run: echo "${{ secrets.ACR_PASSWORD }}" | docker login fastapiregistry001.azurecr.io -u "${{ secrets.ACR_USERNAME }}" --password-stdin
 
-      - name: Build the Docker image
+      - name: Build Docker Image
         run: docker build -t fastapiregistry001.azurecr.io/fastapi-nginx-app:latest .
 
-      - name: Push the Docker image
+      - name: Push Docker Image
         run: docker push fastapiregistry001.azurecr.io/fastapi-nginx-app:latest
 
       - name: Deploy to Azure Web App
@@ -42,24 +36,24 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Restart web app and verify deployment
+      - name: Restart Azure Web App
         run: |
-          # Restart the web app
-          echo "Restarting web app..."
+          echo "Restarting Azure Web App..."
           az webapp restart --name fast-api-002 --resource-group fastapi-book-app_group
 
-          # Wait for the restart to complete
-          echo "Waiting for restart to complete..."
-          sleep 30
-
-           # Verify deployment
+      - name: Verify Deployment
+        run: |
           echo "Verifying deployment..."
           APP_URL="https://fast-api-002.azurewebsites.net"
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" $APP_URL)
-
-          if [ $HTTP_STATUS -eq 200 ]; then
-            echo "Deployment verified successfully - HTTP Status: $HTTP_STATUS"
-          else
-            echo "Deployment verification failed - HTTP Status: $HTTP_STATUS"
-            exit 1
-          fi
+          for i in {1..10}; do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" $APP_URL)
+            if [ $HTTP_STATUS -eq 200 ]; then
+              echo "Deployment verified successfully - HTTP Status: $HTTP_STATUS"
+              exit 0
+            else
+              echo "Attempt $i: Deployment verification failed - HTTP Status: $HTTP_STATUS"
+              sleep 10
+            fi
+          done
+          echo "Deployment verification failed after multiple attempts."
+          exit 1
