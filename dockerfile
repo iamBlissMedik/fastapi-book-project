@@ -26,8 +26,8 @@ RUN rm /etc/nginx/sites-enabled/default
 COPY nginx.conf /etc/nginx/sites-available/fastapi
 RUN ln -s /etc/nginx/sites-available/fastapi /etc/nginx/sites-enabled
 
-# Expose the port Nginx is listening on
-EXPOSE 8000
+# Expose the ports that Nginx and Uvicorn will use
+EXPOSE 80 8000
 
-# Start Nginx and your FastAPI application using Uvicorn
+# Start Nginx and Uvicorn
 CMD service nginx start && uvicorn main:app --host 0.0.0.0 --port 8000
