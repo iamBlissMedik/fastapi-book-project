@@ -23,7 +23,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-github-actions-annotate-failures
+          pip install pytest
 
       - name: Run Tests
-        run: pytest --maxfail=1 --disable-warnings --github-actions
+        run: pytest --maxfail=1 --disable-warnings
